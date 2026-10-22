@@ -1,0 +1,22 @@
+[Unit]
+Description=Read-only IBKR Flex Portfolio Dashboard
+After=network.target
+
+[Service]
+Type=simple
+User=svc-flex
+Group=svc-flex
+WorkingDirectory=/opt/flex-web-live
+ExecStart=/opt/flex-web-live/venv/bin/uvicorn web-live:app --host 127.0.0.1 --port 8002
+Restart=on-failure
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+

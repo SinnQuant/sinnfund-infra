@@ -1,0 +1,52 @@
+# Credentials
+.env
+.env.*
+*.env
+*.env.*
+!.env.example
+!*.env.example
+
+# Python environments
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Sensitive/generated data
+data/
+logs/
+*.xml.gz
+*.csv
+*.parquet
+*.db
+*.sqlite*
+*.jsonl
+*.log
+
+# Private keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+
+# System/editor files
+.DS_Store
+.vscode/
+.idea/
+
+# Temporary backups
+*.before-*
+*.bak
+*.swp
+*~
+
+# Irrelevant prediction data
+prediction-api/submitted_predictions/*
+prediction-api/data
+prediction-api/logs
+
+# Paper trading secret MOVE THIS
+prediction-api/paper-secrets.conf

@@ -1,0 +1,22 @@
+[Unit]
+Description=LSEG Delayed Market Data API
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=svc-lseg
+Group=svc-lseg
+WorkingDirectory=/opt/lseg-feed
+ExecStart=/opt/lseg-feed/venv/bin/python /opt/lseg-feed/feed_api.py
+EnvironmentFile=/opt/lseg-feed/lseg-symbols.env
+EnvironmentFile=/opt/lseg-feed/.env
+Environment=PYTHONUNBUFFERED=1
+
+Restart=on-failure
+RestartSec=15
+
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

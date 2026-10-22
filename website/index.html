@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1019">
+  <meta name="description" content="SINN Fund internal portfolio, research, and trading workflow tools.">
+  <title>SINN Fund — Systems</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --bg: #0b1019;
+      --surface: #151c29;
+      --surface-raised: #1b2533;
+      --border: #2d3949;
+      --text: #e8eef6;
+      --muted: #9cacbf;
+      --accent: #8ab4ff;
+      --green: #71d4aa;
+      --gold: #c9b372;
+      --red: #e57d8e;
+      --purple: #b69cff;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html { min-height: 100%; }
+    body { min-height: 100vh; margin: 0; background: radial-gradient(circle at top, #131b29 0%, #0b1019 48%, #0b1019 100%); color: var(--text); }
+    body.loading { overflow: hidden; }
+    a { color: inherit; }
+
+    /* Chart-driven boot screen. All signals are illustrative artwork. */
+    .boot-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: grid;
+      align-items: center;
+      justify-items: center;
+      padding: 28px 16px;
+      background: radial-gradient(ellipse at 44% 30%, #152238 0%, #0b1019 57%);
+      transition: opacity .55s ease, visibility .55s ease;
+    }
+    .boot-screen.is-complete { opacity: 0; visibility: hidden; pointer-events: none; }
+    .boot-wrap { width: min(1020px, 100%); }
+    .boot-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 26px;
+      gap: 16px;
+    }
+    .boot-brand { display: flex; align-items: center; gap: 12px; }
+    .boot-mark {
+      display: grid; place-items: center;
+      width: 36px; height: 36px;
+      border: 1px solid #47658b; border-radius: 9px;
+      background: #1a2b41; color: var(--accent);
+      font-size: 14px; font-weight: 800; letter-spacing: -.08em;
+    }
+    .boot-name { color: #dfe8f3; font-weight: 720; font-size: 15px; letter-spacing: -.035em; }
+    .boot-quiet { color: #66788f; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .14em; }
+    .boot-dashboard {
+      display: grid;
+      grid-template-columns: minmax(0,1.3fr) minmax(0, .95fr);
+      gap: 13px;
+      align-items: stretch;
+    }
+    .boot-chart, .boot-desk {
+      position: relative; overflow: hidden;
+      border: 1px solid #28374a;
+      background: linear-gradient(160deg, #141e2c, #0f1621);
+      border-radius: 13px;
+    }
+    .boot-chart { min-height: 377px; }
+    .boot-chart::before, .boot-desk::before {
+      content: "";
+      position: absolute; inset: 0;
+      background: linear-gradient(120deg, transparent 26%, rgba(138,180,255,.055) 46%, transparent 69%);
+      transform: translateX(-160%);
+      animation: boot-sheen 2.3s ease-in-out infinite;
+      pointer-events: none; z-index: 3;
+    }
+    .boot-chart-head {
+      position: absolute; top: 20px; left: 21px; right: 20px;
+      display: flex; justify-content: space-between; gap: 12px;
+      z-index: 2;
+    }
+    .boot-dim { font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .11em; color: #7b8fa8; }
+    .boot-live-dot {
+      display: inline-block; vertical-align: middle; margin-right: 8px;
+      width: 5px; height: 5px; background: #71d4aa; border-radius: 50%;
+      box-shadow: 0 0 9px rgba(113,212,170,.65);
+      animation: boot-blink 1.7s ease-in-out infinite;
+    }
+    .boot-chart canvas { display: block; width: 100%; height: 100%; position: absolute; inset: 0; }
+    .boot-desk-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
+    .boot-desk { height: 117px; opacity: .45; transform: translateY(10px); transition: opacity .45s, transform .45s, border-color .45s; }
+    .boot-desk.active { opacity: 1; transform: translateY(0); border-color: #354a60; }
+    .boot-desk::before { animation-delay: .3s; }
+    .boot-desk-label { position: absolute; left: 14px; top: 13px; color: #a9bbce; font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .09em; text-transform: uppercase; z-index: 2; }
+    .boot-desk-dot { position: absolute; right: 13px; top: 16px; width: 5px; height: 5px; border-radius: 50%; background: #64748b; box-shadow: 0 0 0 3px rgba(100,116,139,.12); z-index: 2; transition: background .35s, box-shadow .35s; }
+    .boot-desk.active .boot-desk-dot { background: #71d4aa; box-shadow: 0 0 0 3px rgba(113,212,170,.1); }
+    .boot-desk canvas { display: block; width: 100%; height: 100%; position: absolute; inset: 0; }
+    .boot-bottom { margin-top: 24px; display: flex; align-items: center; justify-content: space-between; gap: 22px; }
+    .boot-stage { display: flex; align-items: center; gap: 12px; color: #90a4bc; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .075em; text-transform: uppercase; white-space: nowrap; }
+    .boot-spinner { width: 14px; height: 14px; border: 1.5px solid #435a74; border-right-color: #8ab4ff; border-radius: 50%; animation: boot-spin .8s linear infinite; }
+    .boot-meter { flex: 1; height: 2px; background: #27354a; border-radius: 2px; position: relative; overflow: hidden; }
+    .boot-meter-fill { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #517eae, #8ab4ff, #71d4aa); box-shadow: 0 0 14px rgba(138,180,255,.7); transition: width .22s ease; }
+    .boot-footnote { margin-top: 13px; color: #5d6f84; font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .035em; text-align: right; }
+    @keyframes boot-sheen { 0%, 12% { transform: translateX(-160%); } 85%, 100% { transform: translateX(160%); } }
+    @keyframes boot-blink { 0%,100% { opacity: .35; } 50% { opacity: 1; } }
+    @keyframes boot-spin { to { transform: rotate(360deg); } }
+    @media (max-width: 760px) {
+      .boot-dashboard { grid-template-columns: 1fr; }
+      .boot-chart { min-height: 235px; }
+      .boot-desk-grid { grid-template-columns: repeat(3, minmax(0,1fr)); gap: 9px; }
+      .boot-desk { height: 85px; }
+      .boot-desk-label { font-size: 9px; left: 10px; top: 10px; }
+      .boot-desk-dot { right: 10px; top: 13px; }
+      .boot-bottom { margin-top: 19px; }
+    }
+    @media (max-width: 480px) {
+      .boot-desk-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .boot-desk { height: 77px; }
+      .boot-chart { min-height: 220px; }
+      .boot-top { margin-bottom: 17px; }
+      .boot-quiet { display: none; }
+    }
+    @media (max-height: 620px) and (min-width: 761px) { .boot-chart { min-height: 290px; } .boot-desk { height: 88px; } .boot-top { margin-bottom: 16px; } .boot-bottom { margin-top: 16px; } }
+    @media (prefers-reduced-motion: reduce) {
+      .boot-spinner { animation: none; }
+      .boot-chart::before, .boot-desk::before { animation: none; }
+      .boot-live-dot { animation: none; }
+    }
+    .page { width: min(1120px, calc(100% - 48px)); margin: 0 auto; }
+    .topbar { height: 100px; display: flex; align-items: center; justify-content: space-between; gap: 18px; border-bottom: 1px solid var(--border); }
+    .identity { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; }
+    .mark { width: 35px; height: 35px; display: grid; place-items: center; border: 1px solid #47658b; border-radius: 9px; background: #1a2b41; color: var(--accent); font-size: 14px; font-weight: 800; letter-spacing: -.08em; }
+    .identity-name { font-weight: 750; letter-spacing: -.035em; font-size: 16px; }
+    .identity-label { margin-left: 10px; padding-left: 15px; color: var(--muted); border-left: 1px solid var(--border); font-size: 13px; }
+    .top-meta { color: var(--muted); font-size: 12px; letter-spacing: .03em; }
+    main { padding-top: 81px; padding-bottom: 93px; }
+    .eyebrow { color: var(--accent); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; font-weight: 800; }
+    h1 { margin: 16px 0 16px; font-size: clamp(38px, 5.6vw, 63px); font-weight: 680; letter-spacing: -.064em; line-height: 1.065; }
+    .intro { max-width: 595px; margin: 0; color: var(--muted); line-height: 1.75; font-size: 15px; }
+    .section-head { margin: 65px 0 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    h2 { margin: 0; font-weight: 620; font-size: 14px; letter-spacing: -.012em; }
+    .section-count { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .tool { position: relative; min-height: 245px; padding: 27px 27px 24px; display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); transition: background-color .18s ease, border-color .18s ease, transform .18s ease; }
+    a.tool { text-decoration: none; }
+    a.tool:hover { background: var(--surface-raised); border-color: #547198; transform: translateY(-2px); }
+    a.tool:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+    .tool--wip { background: #111824; border-color: #25303f; }
+    .tool-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .category { color: var(--muted); font-size: 10px; font-weight: 780; letter-spacing: .15em; text-transform: uppercase; }
+    .status { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+    .status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #59677b; }
+    .status--available::before { background: var(--green); box-shadow: 0 0 0 3px #71d4aa12; }
+    .tool h3 { margin: 24px 0 9px; font-size: 23px; font-weight: 650; letter-spacing: -.042em; }
+    .tool p { max-width: 400px; margin: 0; font-size: 13px; line-height: 1.7; color: var(--muted); }
+    .tool-bottom { margin-top: auto; padding-top: 29px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .path { color: #8697ad; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; }
+    .open-link { color: var(--accent); font-weight: 650; font-size: 12px; display: inline-flex; align-items: center; gap: 9px; }
+    .open-link svg { transition: transform .18s ease; }
+    a.tool:hover .open-link svg { transform: translate(2px, -2px); }
+    .soon { color: #68788d; font-weight: 600; font-size: 12px; }
+    .footer { border-top: 1px solid var(--border); padding: 25px 0 31px; display: flex; justify-content: space-between; gap: 14px; color: #8392a6; font-size: 12px; }
+    .footer strong { font-weight: 650; color: var(--muted); }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition: none !important; animation: none !important; }
+    }
+    @media (max-width: 700px) {
+      .page { width: min(100% - 32px, 1120px); }
+      .topbar { height: 78px; }
+      .identity-label, .top-meta { display: none; }
+      main { padding-top: 61px; padding-bottom: 65px; }
+      .section-head { margin-top: 45px; }
+      .tools { grid-template-columns: 1fr; gap: 12px; }
+      .tool { min-height: 223px; padding: 23px; }
+      .footer { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body class="loading">
+  <div class="boot-screen" id="boot-screen" role="status" aria-label="Loading SINN Fund systems" aria-live="off">
+    <div class="boot-wrap">
+      <div class="boot-top">
+        <div class="boot-brand">
+          <span class="boot-mark" aria-hidden="true">S/</span>
+          <span class="boot-name">SINN Fund <span style="color:#8494a8;font-weight:450">/ Systems</span></span>
+        </div>
+        <span class="boot-quiet">MARKET INTELLIGENCE / SYSTEMS</span>
+      </div>
+
+      <div class="boot-dashboard" aria-hidden="true">
+        <div class="boot-chart">
+          <div class="boot-chart-head">
+            <span class="boot-dim">MARKET STRUCTURE</span>
+            <span class="boot-dim"><span class="boot-live-dot"></span>VISUALIZING</span>
+          </div>
+          <canvas id="boot-main-chart"></canvas>
+        </div>
+        <div class="boot-desk-grid">
+          <div class="boot-desk"><span class="boot-desk-label">Factor</span><span class="boot-desk-dot"></span><canvas></canvas></div>
+          <div class="boot-desk"><span class="boot-desk-label">Quant</span><span class="boot-desk-dot"></span><canvas></canvas></div>
+          <div class="boot-desk"><span class="boot-desk-label">Metals</span><span class="boot-desk-dot"></span><canvas></canvas></div>
+          <div class="boot-desk"><span class="boot-desk-label">Emerging Mkts</span><span class="boot-desk-dot"></span><canvas></canvas></div>
+          <div class="boot-desk"><span class="boot-desk-label">Derivatives</span><span class="boot-desk-dot"></span><canvas></canvas></div>
+          <div class="boot-desk"><span class="boot-desk-label">Energy</span><span class="boot-desk-dot"></span><canvas></canvas></div>
+        </div>
+      </div>
+
+      <div class="boot-bottom">
+        <span class="boot-stage"><span class="boot-spinner" aria-hidden="true"></span><span id="boot-status">Rendering workspace</span></span>
+        <div class="boot-meter" aria-hidden="true"><span class="boot-meter-fill" id="boot-meter-fill"></span></div>
+      </div>
+      <div class="boot-footnote">ILLUSTRATIVE SIGNAL VISUALIZATION · SELECT DESKS</div>
+    </div>
+  </div>
+  <noscript><style>.boot-screen{display:none}body.loading{overflow:auto}</style></noscript>
+
+  <div class="page">
+    <header class="topbar">
+      <div class="identity">
+        <span class="mark" aria-hidden="true">S/</span>
+        <span class="identity-name">SINN Fund</span>
+        <span class="identity-label">Systems</span>
+      </div>
+      <span class="top-meta">PORTFOLIO &amp; RESEARCH INFRASTRUCTURE</span>
+    </header>
+
+    <main>
+      <div class="eyebrow">Internal tools / Directory</div>
+      <h1>Fund systems<span style="color:var(--accent)">.</span></h1>
+      <p class="intro">A central workspace for portfolio reporting, market data, predictive research, and brokerage workflows.</p>
+
+      <div class="section-head">
+        <h2>Applications</h2>
+        <span class="section-count">02 available <span aria-hidden="true">&nbsp;/&nbsp;</span> 02 in development</span>
+      </div>
+
+      <section class="tools" aria-label="Applications">
+        <a class="tool" href="/close/" aria-label="Open Previous Close portfolio dashboard">
+          <div class="tool-top">
+            <span class="category">01 / Portfolio reporting</span>
+            <span class="status status--available">Available</span>
+          </div>
+          <h3>Previous Close</h3>
+          <p>End-of-day positions, account holdings, and tax lots from archived IBKR Flex reports.</p>
+          <div class="tool-bottom">
+            <span class="path">/close</span>
+            <span class="open-link">Open dashboard
+              <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M8 7h9v9"/></svg>
+            </span>
+          </div>
+        </a>
+
+        <a class="tool" href="/live/" aria-label="Open Delayed Prices portfolio dashboard">
+          <div class="tool-top">
+            <span class="category">02 / Market data</span>
+            <span class="status status--available">Available</span>
+          </div>
+          <h3>Delayed Prices</h3>
+          <p>Portfolio valuations using approximately 15-minute delayed LSEG quotes, with archived Flex prices as fallback.</p>
+          <div class="tool-bottom">
+            <span class="path">/live</span>
+            <span class="open-link">Open dashboard
+              <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M8 7h9v9"/></svg>
+            </span>
+          </div>
+        </a>
+
+        <article class="tool tool--wip" aria-label="Prediction Signals: in development">
+          <div class="tool-top">
+            <span class="category">03 / Quant research</span>
+            <span class="status">In development</span>
+          </div>
+          <h3>Prediction Signals</h3>
+          <p>Quantitative research signals, model outputs, and prediction monitoring.</p>
+          <div class="tool-bottom">
+            <span class="path">/prediction</span>
+            <span class="soon">Coming soon</span>
+          </div>
+        </article>
+
+        <article class="tool tool--wip" aria-label="Order Staging: in development">
+          <div class="tool-top">
+            <span class="category">04 / Brokerage operations</span>
+            <span class="status">In development</span>
+          </div>
+          <h3>Order Staging</h3>
+          <p>Prepare and prepopulate IBKR Trader Workstation order fields to streamline manual review and submission.</p>
+          <div class="tool-bottom">
+            <span class="path">/staging</span>
+            <span class="soon">Coming soon</span>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span><strong>SINN Fund</strong> &nbsp;·&nbsp; Internal systems</span>
+      <span>Market quotes are delayed; dashboard values are not execution prices.</span>
+    </footer>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+      const screen = document.getElementById('boot-screen');
+      const meter = document.getElementById('boot-meter-fill');
+      const status = document.getElementById('boot-status');
+      const panels = [...document.querySelectorAll('.boot-desk')];
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const bootStart = performance.now();
+      const bootDuration = reducedMotion ? 130 : 4000;
+      let loaded = document.readyState === 'complete';
+      let stopped = false;
+      let frameId = 0;
+
+      function prepare(canvas) {
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        const rect = canvas.getBoundingClientRect();
+        const w = Math.max(1, rect.width);
+        const h = Math.max(1, rect.height);
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const pw = Math.round(w * dpr);
+        const ph = Math.round(h * dpr);
+        if (canvas.width !== pw || canvas.height !== ph) {
+          canvas.width = pw;
+          canvas.height = ph;
+        }
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+        return { ctx, w, h };
+      }
+
+      function trace(ctx, points, color, width, completion = 1) {
+        if (points.length < 2) return;
+        ctx.beginPath();
+        const last = Math.max(2, Math.ceil((points.length - 1) * completion));
+        ctx.moveTo(points[0][0], points[0][1]);
+        for (let k = 1; k < last; k++) ctx.lineTo(points[k][0], points[k][1]);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        ctx.stroke();
+      }
+
+      // Deterministic, synthetic graphics: no live feed or financial values implied.
+      const candles = Array.from({ length: 46 }, (_, i) => {
+        const base = 0.60 - i * .006 + Math.sin(i * .64) * .08 + Math.cos(i * .19) * .07;
+        const move = Math.sin(i * 2.27 + .3) * .055;
+        const a = base + move;
+        const b = base - move * .52;
+        return { open: a, close: b, hi: Math.min(a, b) - .035 - .022 * (1 + Math.sin(i)), lo: Math.max(a, b) + .034 + .02 * (1 + Math.cos(i)) };
+      });
+
+      function drawMain(t, completion) {
+        const view = prepare(document.getElementById('boot-main-chart'));
+        if (!view) return;
+        const { ctx, w, h } = view;
+        const l = 22, r = w - 20, top = 66, bottom = h - 25;
+        const usableW = r - l, usableH = bottom - top;
+        const y = p => top + p * usableH;
+        const x = i => l + (i + .5) / candles.length * usableW;
+        ctx.strokeStyle = 'rgba(138,180,255,.075)';
+        ctx.lineWidth = 1;
+        for (let row = 0; row <= 4; row++) {
+          const cy = top + (row / 4) * usableH;
+          ctx.beginPath(); ctx.moveTo(l, cy); ctx.lineTo(r, cy); ctx.stroke();
+        }
+        for (let col = 0; col <= 7; col++) {
+          const cx = l + (col / 7) * usableW;
+          ctx.beginPath(); ctx.moveTo(cx, top); ctx.lineTo(cx, bottom); ctx.stroke();
+        }
+        const count = Math.min(candles.length, Math.ceil(candles.length * completion));
+        const barWidth = Math.max(2, Math.min(8, usableW / candles.length * .57));
+        for (let i = 0; i < count; i++) {
+          const c = candles[i];
+          const cx = x(i);
+          const rising = c.close < c.open;
+          const col = rising ? 'rgba(113,212,170,.76)' : 'rgba(229,125,142,.65)';
+          ctx.strokeStyle = col;
+          ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(cx, y(c.hi)); ctx.lineTo(cx, y(c.lo)); ctx.stroke();
+          ctx.fillStyle = col;
+          ctx.fillRect(cx - barWidth / 2, y(Math.min(c.open,c.close)), barWidth, Math.max(2, Math.abs(y(c.close)-y(c.open))));
+        }
+        const samples = 110;
+        const momentum = Array.from({length:samples}, (_, i) => {
+          const p = i / (samples - 1);
+          return [l + p * usableW, y(.64 - p * .36 + .055 * Math.sin(p*19+t*.00055) + .035*Math.cos(p*39))];
+        });
+        const secondary = Array.from({length:samples}, (_, i) => {
+          const p = i / (samples - 1);
+          return [l + p * usableW, y(.71 - p * .17 + .09*Math.sin(p*13-t*.0003+1.3))];
+        });
+        trace(ctx, secondary, 'rgba(182,156,255,.38)', 1.5, completion);
+        ctx.shadowColor = 'rgba(138,180,255,.45)'; ctx.shadowBlur = 8;
+        trace(ctx, momentum, '#8ab4ff', 2, completion);
+        ctx.shadowBlur = 0;
+        const pointIndex = Math.max(0, Math.min(samples-1, Math.floor((samples-1)*completion)));
+        const [dotX, dotY] = momentum[pointIndex];
+        ctx.fillStyle = '#8ab4ff';
+        ctx.beginPath(); ctx.arc(dotX,dotY, 3.5, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = 'rgba(138,180,255,.18)';
+        ctx.beginPath(); ctx.arc(dotX,dotY, 10 + 2*Math.sin(t/220), 0, Math.PI*2); ctx.stroke();
+      }
+
+      const colors = ['#8ab4ff', '#71d4aa', '#c9b372', '#b69cff', '#e57d8e', '#7fc9d4'];
+      function drawDesk(canvas, index, t, completion) {
+        const view = prepare(canvas);
+        if (!view) return;
+        const { ctx, w, h } = view;
+        const count = 55, left = 9, right = w - 9;
+        const pts = Array.from({length:count}, (_, i) => {
+          const p = i/(count-1);
+          const wave = Math.sin(p*(12+index*1.5)+index*1.5+t*(index%2 ? -.00043 : .00039)) * .11;
+          const noise = Math.cos(p*(29+index)+index*.7) * .045;
+          const trend = (p-.5) * (index%2 ? -.2 : .15);
+          return [left+p*(right-left), h*(.7 + wave + noise + trend)];
+        });
+        trace(ctx, pts, colors[index], 1.65, completion);
+        const upto = Math.max(0, Math.min(count-1, Math.floor((count-1)*completion)));
+        if (completion > .03) {
+          const [dx,dy] = pts[upto];
+          ctx.fillStyle=colors[index];
+          ctx.beginPath();ctx.arc(dx,dy,2.5,0,Math.PI*2);ctx.fill();
+        }
+        ctx.strokeStyle = 'rgba(138,180,255,.05)';
+        ctx.beginPath();ctx.moveTo(9,h*.7);ctx.lineTo(w-9,h*.7);ctx.stroke();
+      }
+
+      function finish() {
+        if (stopped) return;
+        stopped = true;
+        status.textContent = 'Ready';
+        meter.style.width = '100%';
+        screen.classList.add('is-complete');
+        document.body.classList.remove('loading');
+        cancelAnimationFrame(frameId);
+        screen.setAttribute('aria-hidden', 'true');
+      }
+
+      const visibleMin = 750;
+      function animate(t) {
+        if (stopped) return;
+        const elapsed = t - bootStart;
+        const completion = reducedMotion ? 1 : Math.min(1, elapsed / (bootDuration * .86));
+        const readiness = loaded ? 1 : (document.readyState === 'interactive' ? .85 : .6);
+        meter.style.width = `${Math.round(Math.min(completion * readiness, .98) * 100)}%`;
+        drawMain(t, completion);
+        panels.forEach((panel, i) => {
+          const individual = Math.max(0, Math.min(1, (completion * 7 - i) / 1.25));
+          if (individual > .06) panel.classList.add('active');
+          drawDesk(panel.querySelector('canvas'), i, t, individual);
+        });
+        if (loaded && elapsed >= Math.max(visibleMin, bootDuration)) {
+          finish();
+        } else {
+          frameId = requestAnimationFrame(animate);
+        }
+      }
+
+      if (document.readyState !== 'complete') {
+        window.addEventListener('load', () => { loaded = true; }, { once: true });
+      }
+      if (reducedMotion) {
+        panels.forEach(panel => panel.classList.add('active'));
+        drawMain(performance.now(), 1);
+        panels.forEach((panel, i) => drawDesk(panel.querySelector('canvas'), i, 0, 1));
+        if (loaded) finish();
+        else window.addEventListener('load', finish, {once:true});
+      } else {
+        frameId = requestAnimationFrame(animate);
+      }
+    })();
+  </script>
+</body>
+</html>

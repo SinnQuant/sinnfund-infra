@@ -1,0 +1,26 @@
+[Unit]
+Description=Flex Portfolio Ingestion
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+
+User=svc-flex
+Group=svc-flex
+
+WorkingDirectory=/opt/flex-ingest
+
+ExecStart=/opt/flex-ingest/venv/bin/python /opt/flex-ingest/flex-ingest.py 
+
+StateDirectory=flex-ingest
+StateDirectoryMode=0750
+
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=HOME=/var/lib/flex-ingest
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true

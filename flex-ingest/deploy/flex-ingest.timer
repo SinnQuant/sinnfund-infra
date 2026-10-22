@@ -1,0 +1,11 @@
+[Unit]
+Description=Flex Ingestion at Market Close
+
+[Timer]
+OnCalendar=Tues..Sat *-*-* 6:00:00 America/New_York
+Persistent=true
+AccuracySec=1min
+Unit=flex-ingest.service
+
+[Install]
+WantedBy=timers.target
