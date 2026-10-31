@@ -74,6 +74,30 @@ class SignalClientTest(unittest.TestCase):
         self.assertEqual((get.method, delete.method), ("GET", "POST"))
         self.assertEqual(json.loads(delete.data), {"signal_id": "example-1", "revision": 4})
 
+    def test_delete_only_requires_exactly_one_deletable_signal(self):
+        class ListResponse(Response):
+            def __init__(self, count):
+                self.count = count
+
+            def read(self):
+                return json.dumps([
+                    {"signal": {"signal_id": f"example-{number}"},
+                     "revision": 1, "status": "pending", "reason": None}
+                    for number in range(self.count)
+                ]).encode()
+
+        def open_one(request, timeout):
+            self.requests.append((request, timeout))
+            return ListResponse(1) if request.method == "GET" else Response()
+
+        with patch("sys.stdout"):
+            client.main(["delete-only"], open_one)
+        self.assertEqual(json.loads(self.requests[-1][0].data),
+                         {"signal_id": "example-0", "revision": 1})
+
+        with self.assertRaisesRegex(SystemExit, "found 2"):
+            client.main(["delete-only"], lambda request, timeout: ListResponse(2))
+
     def test_key_file_must_be_private(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "key"

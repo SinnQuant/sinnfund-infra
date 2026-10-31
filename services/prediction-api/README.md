@@ -237,6 +237,14 @@ python3 services/prediction-api/tools/signal_client.py delete YOUR_SIGNAL_ID
 unset SIGNAL_API_KEY
 ```
 
+If the sender owns exactly one signal that is still deletable, no ID lookup is needed:
+
+```bash
+python3 services/prediction-api/tools/signal_client.py delete-only
+```
+
+`delete-only` stops without changing anything when zero or multiple signals are deletable.
+
 For a noninteractive job, store the plaintext key outside the repository in an owner-only file:
 
 ```bash

@@ -110,6 +110,7 @@ def parser():
     delete = commands.add_parser("delete")
     delete.add_argument("signal_id", type=signal_id)
     delete.add_argument("revision", type=positive_int, nargs="?")
+    commands.add_parser("delete-only")
     return result
 
 
@@ -133,7 +134,7 @@ def main(argv=None, opener=None):
         response = api_request("POST", "/signals/edit", token,
                                {"signal_id": arguments.signal_id,
                                 "revision": arguments.revision, **fields}, opener)
-    else:
+    elif arguments.command == "delete":
         revision = arguments.revision
         if revision is None:
             current = api_request("GET", "/signals/" + quote(arguments.signal_id),
@@ -142,6 +143,16 @@ def main(argv=None, opener=None):
         response = api_request("POST", "/signals/delete", token,
                                {"signal_id": arguments.signal_id,
                                 "revision": revision}, opener)
+    else:
+        signals = api_request("GET", "/signals", token, opener=opener)
+        deletable = [item for item in signals if item.get("status") == "pending" or
+                     item.get("status") == "rejected" and item.get("reason") == "no_direction"]
+        if len(deletable) != 1:
+            raise SystemExit(f"Expected exactly one deletable signal; found {len(deletable)}")
+        item = deletable[0]
+        response = api_request("POST", "/signals/delete", token,
+                               {"signal_id": item["signal"]["signal_id"],
+                                "revision": item["revision"]}, opener)
     json.dump(response, sys.stdout, indent=2)
     sys.stdout.write("\n")
     return 0
