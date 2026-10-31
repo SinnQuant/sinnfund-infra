@@ -94,6 +94,8 @@ def parser():
     create.add_argument("price", type=positive_price)
     create.add_argument("timestamp", type=positive_int)
 
+    commands.add_parser("list")
+
     get = commands.add_parser("get")
     get.add_argument("signal_id", type=signal_id)
 
@@ -118,6 +120,8 @@ def main(argv=None, opener=None):
         body = {name: getattr(arguments, name) for name in
                 ("signal_id", "destination", "ticker", "price", "timestamp")}
         response = api_request("POST", "/signals", token, body, opener)
+    elif arguments.command == "list":
+        response = api_request("GET", "/signals", token, opener=opener)
     elif arguments.command == "get":
         response = api_request("GET", "/signals/" + quote(arguments.signal_id), token, opener=opener)
     elif arguments.command == "edit":

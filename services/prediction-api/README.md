@@ -159,6 +159,15 @@ curl --fail-with-body -sS \
 python3 -m json.tool
 ```
 
+List compact summaries for every signal owned by this sender:
+
+```bash
+curl --fail-with-body -sS \
+  -H "Authorization: Bearer $SIGNAL_API_KEY" \
+  "$API/signals" |
+python3 -m json.tool
+```
+
 Read the current revision and complete audit history:
 
 ```bash
@@ -202,9 +211,9 @@ delete also accept arrays of up to 100 unique signals.
 
 ## 6. Automate with the bundled client
 
-`tools/signal_client.py` is a standard-library client for create, GET, edit, and delete. It does not
-automate export because export consumes every pending LIVE signal and needs a separately approved
-schedule.
+`tools/signal_client.py` is a standard-library client for create, list, GET by ID, edit, and delete.
+It does not automate export because export consumes every pending LIVE signal and needs a
+separately approved schedule.
 
 For interactive automation, keep the key in the current shell:
 
@@ -215,6 +224,7 @@ printf '\n'
 
 python3 services/prediction-api/tools/signal_client.py \
   create YOUR_SIGNAL_ID LIVE YOUR_TICKER 123.45 "$(date +%s)"
+python3 services/prediction-api/tools/signal_client.py list
 python3 services/prediction-api/tools/signal_client.py get YOUR_SIGNAL_ID
 
 CURRENT_REVISION=$(python3 services/prediction-api/tools/signal_client.py \

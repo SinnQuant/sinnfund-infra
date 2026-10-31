@@ -39,9 +39,11 @@ class SignalClientTest(unittest.TestCase):
     def test_create_and_get_use_post_and_get_without_exposing_key_in_url(self):
         with patch("sys.stdout"):
             client.main(["create", "example-1", "LIVE", "EXA", "12.5", "1792609200"], self.open)
+            client.main(["list"], self.open)
             client.main(["get", "example-1"], self.open)
-        create, get = [item[0] for item in self.requests]
-        self.assertEqual((create.method, get.method), ("POST", "GET"))
+        create, list_request, get = [item[0] for item in self.requests]
+        self.assertEqual((create.method, list_request.method, get.method), ("POST", "GET", "GET"))
+        self.assertTrue(list_request.full_url.endswith("/signals"))
         self.assertEqual(json.loads(create.data), {
             "signal_id": "example-1", "destination": "LIVE", "ticker": "EXA",
             "price": 12.5, "timestamp": 1792609200,
