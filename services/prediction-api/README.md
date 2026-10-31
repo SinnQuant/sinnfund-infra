@@ -334,6 +334,7 @@ existing audit records.
 
 | Symptom | Meaning / action |
 |---|---|
+| `Set exactly one of SIGNAL_API_KEY or SIGNAL_API_KEY_FILE` | This shell has neither variable or both. Run `unset SIGNAL_API_KEY SIGNAL_API_KEY_FILE`, then set exactly one. A lost plaintext key cannot be recovered; rotate the same sender identity. |
 | `401 Invalid signal API credential` | Wrong, revoked, or wrong-scope key; confirm the intended username exists in the correct local hash file and reinstall it |
 | `404 signal not found` | Authentication succeeded, but the ID is absent or belongs to another sender |
 | `409 signal revision changed` | GET the signal and retry only with the returned current revision |
