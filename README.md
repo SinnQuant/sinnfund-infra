@@ -51,7 +51,7 @@ The ingestion service downloads and archives complete Flex XML reports. Both das
 | `services/flex-web/` | Read-only previous-close positions and tax-lot dashboard | `/opt/flex-web/` | `flex-web.service` | `127.0.0.1:8001` → `/close/` |
 | `services/flex-web-live/` | Read-only dashboard repriced using delayed/cached LSEG quotes | `/opt/flex-web-live/` | `flex-web-live.service` | `127.0.0.1:8002` → `/live/` |
 | `services/lseg-feed/` | LSEG session, RIC normalization, local pricing API | `/opt/lseg-feed/` | `lseg-feed.service` | `127.0.0.1:8091` (internal only) |
-| `services/prediction-api/` | Prediction and paper-signal API | `/opt/prediction-api/` | Verify installed unit name | `127.0.0.1:8003` → `/prediction/` |
+| [`services/prediction-api/`](services/prediction-api/README.md) | Prediction and paper-signal API | `/opt/prediction-api/` | `prediction-api.service` | `127.0.0.1:8003` → `/prediction/` |
 | `website/` | Static landing page | `/var/www/sinnfund/` | Served by Nginx | `/` |
 | `deploy/nginx/` | Version-controlled Nginx virtual host | `/etc/nginx/sites-available/` | `nginx.service` | HTTPS entry point and reverse proxy |
 
@@ -128,6 +128,7 @@ The `services/` paths above reflect the reorganized source layout. Deployed appl
 | [Incident reports](docs/incidents/README.md) | Failures, investigations, fixes, and follow-up actions |
 | [Engineering journal](docs/journal/README.md) | Dated development sessions and personal technical reflections |
 | [Additional notes](docs/notes.md) | Working project notes |
+| [Prediction API operations](services/prediction-api/README.md) | Issue, rotate, verify, use, and revoke signal API keys |
 
 Some ADRs and incidents discuss the risk/VaR prototype and proposed TAMU Kion/AWS hosting. Those records document the broader project history and **do not imply that the corresponding services or cloud resources are included in, or deployed from, this repository**. Trade staging through IBKR BasketTrader and researcher prediction integration are also separate workstreams; neither grants the public dashboards trading authority.
 
