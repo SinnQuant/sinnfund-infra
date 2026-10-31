@@ -287,6 +287,10 @@ Export is a privileged, state-changing operation. It compares every pending LIVE
 batched quote request, writes `account,symbol,target`, and consumes the pending set only after the
 CSV write succeeds. Do not use export to test a credential.
 
+The deployed exporter does not yet require a quote timestamp or reject a stale quote. Do not feed
+its CSV into live execution until the application enforces an agreed maximum age; a stale close can
+reverse the intended LONG/SHORT decision.
+
 ```bash
 read -rs SIGNAL_EXPORTER_KEY
 export SIGNAL_EXPORTER_KEY
