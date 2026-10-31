@@ -2,6 +2,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import stat
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -37,8 +38,8 @@ class SignalClientTest(unittest.TestCase):
         return Response()
 
     def test_create_and_get_use_post_and_get_without_exposing_key_in_url(self):
-        with patch("sys.stdout"):
-            client.main(["create", "example-1", "LIVE", "EXA", "12.5", "1792609200"], self.open)
+        with patch("sys.stdout"), patch.object(client.time, "time", return_value=1792609200):
+            client.main(["create", "example-1", "LIVE", "EXA", "12.5"], self.open)
             client.main(["list"], self.open)
             client.main(["get", "example-1"], self.open)
         create, list_request, get = [item[0] for item in self.requests]
@@ -58,6 +59,22 @@ class SignalClientTest(unittest.TestCase):
         edit, delete = [json.loads(item[0].data) for item in self.requests]
         self.assertEqual(edit, {"signal_id": "example-1", "revision": 1, "price": 13.0})
         self.assertEqual(delete, {"signal_id": "example-1", "revision": 2})
+
+    def test_edit_without_revision_fetches_current_revision(self):
+        class CurrentResponse(Response):
+            def read(self):
+                return b'{"revision":4}'
+
+        def open_current(request, timeout):
+            self.requests.append((request, timeout))
+            return CurrentResponse() if request.method == "GET" else Response()
+
+        with patch("sys.stdout"):
+            client.main(["edit", "example-1", "--price", "13"], open_current)
+        get, edit = [item[0] for item in self.requests]
+        self.assertEqual((get.method, edit.method), ("GET", "POST"))
+        self.assertEqual(json.loads(edit.data),
+                         {"signal_id": "example-1", "revision": 4, "price": 13.0})
 
     def test_delete_without_revision_fetches_current_revision(self):
         class CurrentResponse(Response):
@@ -91,7 +108,7 @@ class SignalClientTest(unittest.TestCase):
             return ListResponse(1) if request.method == "GET" else Response()
 
         with patch("sys.stdout"):
-            client.main(["delete-only"], open_one)
+            client.main(["delete"], open_one)
         self.assertEqual(json.loads(self.requests[-1][0].data),
                          {"signal_id": "example-0", "revision": 1})
 
@@ -111,6 +128,17 @@ class SignalClientTest(unittest.TestCase):
         with patch.dict(os.environ, {"SIGNAL_API_KEY_FILE": "/missing/key"}, clear=True):
             with self.assertRaisesRegex(SystemExit, "Cannot read SIGNAL_API_KEY_FILE"):
                 client.credential()
+
+    def test_default_key_file_and_configure_key(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config" / "signal-sender.key"
+            with patch.dict(os.environ, {}, clear=True), \
+                    patch.object(client, "DEFAULT_KEY_FILE", path), \
+                    patch.object(client.getpass, "getpass", return_value=TOKEN), \
+                    patch("sys.stdout"):
+                client.main(["configure-key"])
+                self.assertEqual(client.credential(), TOKEN)
+            self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
 
 
 if __name__ == "__main__":

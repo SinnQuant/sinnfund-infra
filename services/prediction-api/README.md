@@ -215,66 +215,61 @@ delete also accept arrays of up to 100 unique signals.
 It does not automate export because export consumes every pending LIVE signal and needs a
 separately approved schedule.
 
-For interactive automation, keep the key in the current shell:
+Save the sender key once. The prompt is hidden, and the client writes the key to
+`~/.config/sinnfund/signal-sender.key` with mode `0600`:
 
 ```bash
-read -rs SIGNAL_API_KEY
-export SIGNAL_API_KEY
-printf '\n'
+python3 services/prediction-api/tools/signal_client.py configure-key
+```
 
+Normal use needs no environment variables. The create timestamp defaults to the current time;
+edit and delete fetch the current revision themselves:
+
+```bash
 python3 services/prediction-api/tools/signal_client.py \
-  create YOUR_SIGNAL_ID LIVE YOUR_TICKER 123.45 "$(date +%s)"
+  create YOUR_SIGNAL_ID LIVE YOUR_TICKER 123.45
 python3 services/prediction-api/tools/signal_client.py list
 python3 services/prediction-api/tools/signal_client.py get YOUR_SIGNAL_ID
-
-CURRENT_REVISION=$(python3 services/prediction-api/tools/signal_client.py \
-  get YOUR_SIGNAL_ID | python3 -c 'import json,sys; print(json.load(sys.stdin)["revision"])')
 python3 services/prediction-api/tools/signal_client.py \
-  edit YOUR_SIGNAL_ID "$CURRENT_REVISION" --price 125.00
-
+  edit YOUR_SIGNAL_ID --price 125.00
 python3 services/prediction-api/tools/signal_client.py delete YOUR_SIGNAL_ID
-
-unset SIGNAL_API_KEY
 ```
 
 If the sender owns exactly one signal that is still deletable, no ID lookup is needed:
 
 ```bash
-python3 services/prediction-api/tools/signal_client.py delete-only
+python3 services/prediction-api/tools/signal_client.py delete
 ```
 
-`delete-only` stops without changing anything when zero or multiple signals are deletable.
+The no-ID delete stops without changing anything when zero or multiple signals are deletable.
+`delete-only` remains as a compatible alias.
 
-For a noninteractive job, store the plaintext key outside the repository in an owner-only file:
-
-```bash
-mkdir -p "$HOME/.config/sinnfund"
-chmod 700 "$HOME/.config/sinnfund"
-umask 077
-read -rs SIGNAL_API_KEY
-printf '%s' "$SIGNAL_API_KEY" > "$HOME/.config/sinnfund/signal-sender.key"
-chmod 600 "$HOME/.config/sinnfund/signal-sender.key"
-unset SIGNAL_API_KEY
-```
-
-A model or scheduled wrapper can then call the client without placing the key in arguments or
-source code:
+For a scheduled job, run `configure-key` once as the same operating-system user that will run the
+job. Then save this example outside the repository as `send_signal.sh`:
 
 ```bash
 #!/bin/sh
 set -eu
 
-: "${SIGNAL_ID:?set SIGNAL_ID}"
-: "${SIGNAL_TICKER:?set SIGNAL_TICKER}"
-: "${SIGNAL_PRICE:?set SIGNAL_PRICE}"
-: "${SIGNAL_TIMESTAMP:?set SIGNAL_TIMESTAMP}"
+if [ "$#" -ne 4 ]; then
+  printf 'usage: %s SIGNAL_ID LIVE_OR_PAPER TICKER TARGET_PRICE\n' "$0" >&2
+  exit 2
+fi
 
-export SIGNAL_API_KEY_FILE="$HOME/.config/sinnfund/signal-sender.key"
 exec python3 /path/to/sinnfund-infra/services/prediction-api/tools/signal_client.py \
-  create "$SIGNAL_ID" LIVE "$SIGNAL_TICKER" "$SIGNAL_PRICE" "$SIGNAL_TIMESTAMP"
+  create "$1" "$2" "$3" "$4"
 ```
 
-The caller remains responsible for generating a unique ID and the intended forecast timestamp.
+Example automation call:
+
+```bash
+./send_signal.sh "model-$(date +%s)" LIVE EXAMPLE 123.45
+```
+
+Use a made-up/public instrument when testing. The caller remains responsible for generating a
+unique ID. Pass an explicit timestamp after the target price only when the forecast time differs
+from the send time. To use another private key location, set `SIGNAL_API_KEY_FILE`; ephemeral jobs
+may instead set `SIGNAL_API_KEY`. Never set both, put a key in command arguments, or commit a key.
 Do not automatically retry a request under a new ID: a lost response may still mean the original
 signal was accepted. Retry the same ID, which is idempotent, then GET it. Automated edits and
 deletes must use the current revision; the client fetches it when the revision argument is omitted.
@@ -334,7 +329,9 @@ existing audit records.
 
 | Symptom | Meaning / action |
 |---|---|
-| `Set exactly one of SIGNAL_API_KEY or SIGNAL_API_KEY_FILE` | This shell has neither variable or both. Run `unset SIGNAL_API_KEY SIGNAL_API_KEY_FILE`, then set exactly one. A lost plaintext key cannot be recovered; rotate the same sender identity. |
+| `No saved signal API key` | Run `signal_client.py configure-key` once as the current operating-system user |
+| `Set only one of SIGNAL_API_KEY or SIGNAL_API_KEY_FILE` | Both overrides are set. Unset one, or unset both to use the saved default key |
+| Older client says `Set exactly one of SIGNAL_API_KEY or SIGNAL_API_KEY_FILE` | Update the client and run `configure-key`; the current client uses a private saved key by default |
 | `401 Invalid signal API credential` | Wrong, revoked, or wrong-scope key; confirm the intended username exists in the correct local hash file and reinstall it |
 | `404 signal not found` | Authentication succeeded, but the ID is absent or belongs to another sender |
 | `409 signal revision changed` | GET the signal and retry only with the returned current revision |
