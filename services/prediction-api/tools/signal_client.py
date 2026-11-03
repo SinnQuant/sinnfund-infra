@@ -13,7 +13,7 @@ import sys
 import tempfile
 import time
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 from urllib.request import Request, urlopen
 
 
@@ -58,7 +58,7 @@ def credential():
             mode = path.stat().st_mode
         except OSError as error:
             if path == DEFAULT_KEY_FILE.expanduser() and isinstance(error, FileNotFoundError):
-                raise SystemExit("No saved signal API key; run signal_client.py configure-key") from None
+                raise SystemExit("No saved signal API key; run signal_client.py save-key") from None
             raise SystemExit(f"Cannot read SIGNAL_API_KEY_FILE: {error.strerror}") from None
         if not stat.S_ISREG(mode) or mode & 0o077:
             raise SystemExit("SIGNAL_API_KEY_FILE must be a regular file with mode 0600")
@@ -93,14 +93,18 @@ def configure_key():
                 Path(temporary).unlink()
             except FileNotFoundError:
                 pass
-    print(f"Saved private key to {path}")
+    print(f"Saved an already-issued private key to {path}")
     return 0
 
 
 def api_request(method, path, token, body=None, opener=None):
     data = json.dumps(body, separators=(",", ":")).encode() if body is not None else None
+    base = os.getenv("SIGNAL_API_BASE_URL", DEFAULT_BASE_URL).rstrip("/")
+    parsed = urlsplit(base)
+    if parsed.scheme != "https" or not parsed.netloc or parsed.query or parsed.fragment:
+        raise SystemExit("SIGNAL_API_BASE_URL must be an HTTPS endpoint")
     request = Request(
-        os.getenv("SIGNAL_API_BASE_URL", DEFAULT_BASE_URL).rstrip("/") + path,
+        base + path,
         data=data,
         headers={"Authorization": "Bearer " + token, "Content-Type": "application/json"},
         method=method,
@@ -127,6 +131,7 @@ def parser():
     create.add_argument("ticker", type=ticker)
     create.add_argument("price", type=positive_price)
     create.add_argument("timestamp", type=positive_int, nargs="?")
+    create.add_argument("--limit-price", type=positive_price)
 
     commands.add_parser("list")
 
@@ -139,24 +144,32 @@ def parser():
     edit.add_argument("--destination", choices=("LIVE", "PAPER"))
     edit.add_argument("--ticker", type=ticker)
     edit.add_argument("--price", type=positive_price)
+    edit.add_argument("--limit-price", type=positive_price)
     edit.add_argument("--timestamp", type=positive_int)
 
     delete = commands.add_parser("delete")
     delete.add_argument("signal_id", type=signal_id, nargs="?")
     delete.add_argument("revision", type=positive_int, nargs="?")
     commands.add_parser("delete-only")
-    commands.add_parser("configure-key")
+    commands.add_parser("save-key")
+    commands.add_parser("configure-key", help=argparse.SUPPRESS)
     return result
 
 
 def main(argv=None, opener=None):
     arguments = parser().parse_args(argv)
-    if arguments.command == "configure-key":
+    if arguments.command in ("save-key", "configure-key"):
         return configure_key()
     token = credential()
     if arguments.command == "create":
         body = {name: getattr(arguments, name) for name in
                 ("signal_id", "destination", "ticker", "price", "timestamp")}
+        if arguments.destination == "PAPER":
+            if arguments.timestamp is None or arguments.limit_price is None:
+                parser().error("PAPER create requires a future timestamp and --limit-price")
+            body["limit_price"] = arguments.limit_price
+        elif arguments.limit_price is not None:
+            parser().error("LIVE create cannot use --limit-price")
         if body["timestamp"] is None:
             body["timestamp"] = int(time.time())
         response = api_request("POST", "/signals", token, body, opener)
@@ -166,7 +179,7 @@ def main(argv=None, opener=None):
         response = api_request("GET", "/signals/" + quote(arguments.signal_id), token, opener=opener)
     elif arguments.command == "edit":
         fields = {name: getattr(arguments, name) for name in
-                  ("destination", "ticker", "price", "timestamp")
+                  ("destination", "ticker", "price", "limit_price", "timestamp")
                   if getattr(arguments, name) is not None}
         if not fields:
             parser().error("edit requires at least one changed field")

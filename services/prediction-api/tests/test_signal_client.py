@@ -52,12 +52,29 @@ class SignalClientTest(unittest.TestCase):
         self.assertNotIn(TOKEN, create.full_url)
         self.assertEqual(create.headers["Authorization"], "Bearer " + TOKEN)
 
+    def test_paper_create_requires_and_sends_future_time_and_limit(self):
+        with patch("sys.stdout"):
+            client.main(["create", "paper-1", "PAPER", "EXA", "12.5",
+                         "1792609200", "--limit-price", "10"], self.open)
+        self.assertEqual(json.loads(self.requests[0][0].data), {
+            "signal_id": "paper-1", "destination": "PAPER", "ticker": "EXA",
+            "price": 12.5, "timestamp": 1792609200, "limit_price": 10.0,
+        })
+        for arguments in (["create", "paper-1", "PAPER", "EXA", "12.5"],
+                          ["create", "live-1", "LIVE", "EXA", "12.5",
+                           "--limit-price", "10"]):
+            with self.subTest(arguments=arguments), patch("sys.stderr"), \
+                    self.assertRaises(SystemExit):
+                client.main(arguments, self.open)
+
     def test_edit_and_delete_include_revision(self):
         with patch("sys.stdout"):
-            client.main(["edit", "example-1", "1", "--price", "13"], self.open)
+            client.main(["edit", "example-1", "1", "--price", "13",
+                         "--limit-price", "12"], self.open)
             client.main(["delete", "example-1", "2"], self.open)
         edit, delete = [json.loads(item[0].data) for item in self.requests]
-        self.assertEqual(edit, {"signal_id": "example-1", "revision": 1, "price": 13.0})
+        self.assertEqual(edit, {"signal_id": "example-1", "revision": 1,
+                                "price": 13.0, "limit_price": 12.0})
         self.assertEqual(delete, {"signal_id": "example-1", "revision": 2})
 
     def test_edit_without_revision_fetches_current_revision(self):
@@ -129,6 +146,13 @@ class SignalClientTest(unittest.TestCase):
             with self.assertRaisesRegex(SystemExit, "Cannot read SIGNAL_API_KEY_FILE"):
                 client.credential()
 
+    def test_api_base_url_must_use_https(self):
+        with patch.dict(os.environ, {"SIGNAL_API_KEY": TOKEN,
+                                     "SIGNAL_API_BASE_URL": "http://example.test"}, clear=True), \
+                self.assertRaisesRegex(SystemExit, "HTTPS"):
+            client.main(["list"], self.open)
+        self.assertEqual(self.requests, [])
+
     def test_default_key_file_and_configure_key(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "config" / "signal-sender.key"
@@ -136,7 +160,7 @@ class SignalClientTest(unittest.TestCase):
                     patch.object(client, "DEFAULT_KEY_FILE", path), \
                     patch.object(client.getpass, "getpass", return_value=TOKEN), \
                     patch("sys.stdout"):
-                client.main(["configure-key"])
+                client.main(["save-key"])
                 self.assertEqual(client.credential(), TOKEN)
             self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
 

@@ -9,12 +9,12 @@ inbox.
 
 **HTTP bind:** `127.0.0.1:8003`
 
-**Public prefix:** `https://sinnfund.jkoh.dev/prediction/`
+**Draft/test prefix:** `https://sinnfund.jkoh.dev/prediction/`
 
-This runbook documents the deployed `/signals` key and request workflow. The deployed
-`signal_ledger.py` is not yet present on this repository's `main` branch; do not rebuild production
-from Git until that source difference is reconciled. This document does not change or deploy the
-service.
+AWS is the production target. Set `SIGNAL_HOST` to its operator-managed SSH alias and
+`SIGNAL_API_BASE_URL` to its published HTTPS `/prediction` prefix; do not send production signals
+to jkoh. Until the AWS HTTPS prefix is published, the examples below deliberately default to the
+jkoh draft/test environment.
 
 ## 1. Key scopes and storage
 
@@ -48,14 +48,23 @@ This prevents one operator from accidentally removing keys issued by another ope
 umask 077
 mkdir -p data/private
 SENDER_FILE=data/private/signal-senders.htpasswd
+SIGNAL_HOST=${SIGNAL_HOST:-sinnfund}
 
-if ssh sinnfund 'test -f /opt/prediction-api/signal-data/senders.htpasswd'; then
-  scp sinnfund:/opt/prediction-api/signal-data/senders.htpasswd "$SENDER_FILE"
+status=0
+ssh "$SIGNAL_HOST" 'test -f /opt/prediction-api/signal-data/senders.htpasswd' || status=$?
+if [ "$status" -eq 0 ]; then
+  scp "$SIGNAL_HOST":/opt/prediction-api/signal-data/senders.htpasswd "$SENDER_FILE" || exit $?
+elif [ "$status" -eq 1 ]; then
+  : > "$SENDER_FILE"
 else
-  touch "$SENDER_FILE"
+  printf 'Remote key-file check failed; nothing changed.\n' >&2
+  exit "$status"
 fi
 chmod 600 "$SENDER_FILE"
 ```
+
+An SSH/network/authentication failure is not the same as an absent file. The status check above
+stops on those failures so an empty local file cannot accidentally replace every active key.
 
 Issue a new key, or rotate an existing name by running the same command with that name:
 
@@ -78,9 +87,9 @@ Install the complete hash file atomically:
 
 ```bash
 scp "$SENDER_FILE" \
-  sinnfund:/opt/prediction-api/signal-data/.senders.htpasswd.upload
+  "$SIGNAL_HOST":/opt/prediction-api/signal-data/.senders.htpasswd.upload
 
-ssh sinnfund '
+ssh "$SIGNAL_HOST" '
   set -eu
   path=/opt/prediction-api/signal-data/.senders.htpasswd.upload
   chgrp trading-dev "$path"
@@ -118,10 +127,11 @@ Read the key without adding it to shell history, then request an intentionally n
 read -rs SIGNAL_API_KEY
 export SIGNAL_API_KEY
 printf '\n'
+API=${SIGNAL_API_BASE_URL:-https://sinnfund.jkoh.dev/prediction}
 
 code=$(curl -sS -o /dev/null -w '%{http_code}' \
   -H "Authorization: Bearer $SIGNAL_API_KEY" \
-  https://sinnfund.jkoh.dev/prediction/signals/key-check-does-not-exist)
+  "$API/signals/key-check-does-not-exist")
 
 test "$code" = 404 && printf 'Sender key accepted\n' || {
   printf 'Unexpected HTTP status: %s\n' "$code" >&2
@@ -138,7 +148,7 @@ The signal API intentionally uses only GET and POST. Replace the shell values be
 intended signal; do not submit examples to production.
 
 ```bash
-API=https://sinnfund.jkoh.dev/prediction
+API=${SIGNAL_API_BASE_URL:-https://sinnfund.jkoh.dev/prediction}
 SIGNAL_ID=YOUR_UNIQUE_SIGNAL_ID
 SIGNAL_DESTINATION=LIVE
 SIGNAL_TICKER=YOUR_TICKER
@@ -215,11 +225,13 @@ delete also accept arrays of up to 100 unique signals.
 It does not automate export because export consumes every pending LIVE signal and needs a
 separately approved schedule.
 
-Save the sender key once. The prompt is hidden, and the client writes the key to
+First, an operator must issue the key using section 2. `save-key` does **not** create, issue, rotate,
+or grant permissions to a key; it only stores that already-issued plaintext key for this operating-
+system user. The prompt is hidden, and the client writes it to
 `~/.config/sinnfund/signal-sender.key` with mode `0600`:
 
 ```bash
-python3 services/prediction-api/tools/signal_client.py configure-key
+python3 services/prediction-api/tools/signal_client.py save-key
 ```
 
 Normal use needs no environment variables. The create timestamp defaults to the current time;
@@ -235,6 +247,15 @@ python3 services/prediction-api/tools/signal_client.py \
 python3 services/prediction-api/tools/signal_client.py delete YOUR_SIGNAL_ID
 ```
 
+PAPER requires an explicit future forecast timestamp and entry limit. The API fetches a fresh
+current quote, derives LONG/SHORT from current versus target, queues one paper share, and then makes
+the signal immutable:
+
+```bash
+python3 services/prediction-api/tools/signal_client.py \
+  create YOUR_SIGNAL_ID PAPER YOUR_TICKER 123.45 FUTURE_UNIX_TIME --limit-price 120.00
+```
+
 If the sender owns exactly one signal that is still deletable, no ID lookup is needed:
 
 ```bash
@@ -244,26 +265,34 @@ python3 services/prediction-api/tools/signal_client.py delete
 The no-ID delete stops without changing anything when zero or multiple signals are deletable.
 `delete-only` remains as a compatible alias.
 
-For a scheduled job, run `configure-key` once as the same operating-system user that will run the
+For a scheduled job, run `save-key` once as the same operating-system user that will run the
 job. Then save this example outside the repository as `send_signal.sh`:
 
 ```bash
 #!/bin/sh
 set -eu
 
-if [ "$#" -ne 4 ]; then
-  printf 'usage: %s SIGNAL_ID LIVE_OR_PAPER TICKER TARGET_PRICE\n' "$0" >&2
-  exit 2
-fi
-
-exec python3 /path/to/sinnfund-infra/services/prediction-api/tools/signal_client.py \
-  create "$1" "$2" "$3" "$4"
+CLIENT=/path/to/sinnfund-infra/services/prediction-api/tools/signal_client.py
+case "${2-}:$#" in
+  LIVE:4)
+    exec python3 "$CLIENT" create "$1" LIVE "$3" "$4"
+    ;;
+  PAPER:6)
+    exec python3 "$CLIENT" create "$1" PAPER "$3" "$4" "$5" --limit-price "$6"
+    ;;
+  *)
+    printf 'usage: %s ID LIVE TICKER TARGET\n' "$0" >&2
+    printf '   or: %s ID PAPER TICKER TARGET FUTURE_UNIX_TIME LIMIT\n' "$0" >&2
+    exit 2
+    ;;
+esac
 ```
 
 Example automation call:
 
 ```bash
 ./send_signal.sh "model-$(date +%s)" LIVE EXAMPLE 123.45
+./send_signal.sh "paper-$(date +%s)" PAPER EXAMPLE 123.45 "$(($(date +%s)+86400))" 120.00
 ```
 
 Use a made-up/public instrument when testing. The caller remains responsible for generating a
@@ -287,9 +316,8 @@ Export is a privileged, state-changing operation. It compares every pending LIVE
 batched quote request, writes `account,symbol,target`, and consumes the pending set only after the
 CSV write succeeds. Do not use export to test a credential.
 
-The deployed exporter does not yet require a quote timestamp or reject a stale quote. Do not feed
-its CSV into live execution until the application enforces an agreed maximum age; a stale close can
-reverse the intended LONG/SHORT decision.
+The application requires quote timestamps within the approved 5,400-second after-close window. A
+missing/stale quote fails the whole export and consumes nothing.
 
 ```bash
 read -rs SIGNAL_EXPORTER_KEY
@@ -298,7 +326,7 @@ printf '\n'
 
 curl --fail-with-body -sS -X POST \
   -H "Authorization: Bearer $SIGNAL_EXPORTER_KEY" \
-  https://sinnfund.jkoh.dev/prediction/signals/export |
+  "${SIGNAL_API_BASE_URL:-https://sinnfund.jkoh.dev/prediction}/signals/export" |
 python3 -m json.tool
 
 unset SIGNAL_EXPORTER_KEY
@@ -333,22 +361,22 @@ existing audit records.
 
 | Symptom | Meaning / action |
 |---|---|
-| `No saved signal API key` | Run `signal_client.py configure-key` once as the current operating-system user |
+| `No saved signal API key` | Obtain an issued sender key, then run `signal_client.py save-key` once as the current operating-system user |
 | `Set only one of SIGNAL_API_KEY or SIGNAL_API_KEY_FILE` | Both overrides are set. Unset one, or unset both to use the saved default key |
-| Older client says `Set exactly one of SIGNAL_API_KEY or SIGNAL_API_KEY_FILE` | Update the client and run `configure-key`; the current client uses a private saved key by default |
+| Older client says `Set exactly one of SIGNAL_API_KEY or SIGNAL_API_KEY_FILE` | Update the client and run `save-key`; the current client uses a private saved key by default |
 | `401 Invalid signal API credential` | Wrong, revoked, or wrong-scope key; confirm the intended username exists in the correct local hash file and reinstall it |
 | `404 signal not found` | Authentication succeeded, but the ID is absent or belongs to another sender |
 | `409 signal revision changed` | GET the signal and retry only with the returned current revision |
 | `409 only pending or no_direction signals can be edited/deleted` | The signal is already exported, deleted, or otherwise final |
 | `503 ...htpasswd is not configured` | Install the corresponding sender/exporter hash file |
-| `htpasswd: cannot modify file ... use -c` | Create the empty local file with `touch`; do not use `-c` against an existing multi-user file |
+| `htpasswd: cannot modify file ... use -c` | After confirming the remote file truly does not exist, create the empty local file with `: > "$SENDER_FILE"`; do not use `-c` against an existing multi-user file |
 | Key works locally but not after install | Verify remote group/mode and that the upload was atomically renamed to the exact active filename |
 
 Check service state without exposing credentials:
 
 ```bash
-ssh sinnfund 'systemctl is-active prediction-api.service'
-curl -fsS https://sinnfund.jkoh.dev/prediction/openapi.json >/dev/null
+ssh "${SIGNAL_HOST:-sinnfund}" 'systemctl is-active prediction-api.service'
+curl -fsS "${SIGNAL_API_BASE_URL:-https://sinnfund.jkoh.dev/prediction}/openapi.json" >/dev/null
 ```
 
 Never print server hash contents, bearer keys, runtime configuration, account identifiers, or
