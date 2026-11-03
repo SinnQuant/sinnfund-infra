@@ -64,6 +64,12 @@ class SignalKeysTest(unittest.TestCase):
             keys.main(["revoke"])
         self.assertEqual(self.installed, "keep:{SHA}three\n")
 
+    def test_ssh_failure_has_a_short_recovery_message(self):
+        failure = keys.subprocess.CalledProcessError(1, ["ssh"])
+        with patch.object(keys.subprocess, "run", side_effect=failure), \
+                self.assertRaisesRegex(SystemExit, "verify the key list"):
+            keys.run(["ssh", "example"])
+
 
 if __name__ == "__main__":
     unittest.main()

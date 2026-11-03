@@ -66,7 +66,12 @@ def host():
 
 
 def run(command, check=True):
-    return subprocess.run(command, check=check, stdout=subprocess.DEVNULL)
+    try:
+        return subprocess.run(command, check=check, stdout=subprocess.DEVNULL)
+    except subprocess.CalledProcessError:
+        raise SystemExit("SSH operation failed; verify the key list before retrying") from None
+    except OSError:
+        raise SystemExit("Could not run ssh or scp") from None
 
 
 def download(scope, destination):
