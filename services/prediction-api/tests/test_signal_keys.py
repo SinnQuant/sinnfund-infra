@@ -1,5 +1,6 @@
 import importlib.util
 import io
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -69,6 +70,20 @@ class SignalKeysTest(unittest.TestCase):
         with patch.object(keys.subprocess, "run", side_effect=failure), \
                 self.assertRaisesRegex(SystemExit, "verify the key list"):
             keys.run(["ssh", "example"])
+
+    def test_local_server_updates_key_file_without_ssh(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "senders.htpasswd"
+            target.write_text("existing:{SHA}old\n")
+            local = root / "local.htpasswd"
+            with patch.object(keys, "REMOTE_ROOT", str(root)), \
+                    patch.dict(os.environ, {}, clear=True):
+                keys.download("sender", local)
+                local.write_text(local.read_text() + "new:{SHA}value\n")
+                keys.install("sender", local)
+            self.assertEqual(target.read_text(), "existing:{SHA}old\nnew:{SHA}value\n")
+            self.assertEqual(target.stat().st_mode & 0o777, 0o640)
 
 
 if __name__ == "__main__":

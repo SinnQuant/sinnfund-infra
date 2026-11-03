@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interactively create, list, or revoke signal API keys over SSH."""
+"""Interactively create, list, or revoke signal API keys locally or over SSH."""
 
 import argparse
 import base64
@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import re
 import secrets
+import shutil
 import subprocess
 import tempfile
 
@@ -65,6 +66,11 @@ def host():
     return value
 
 
+def local_server():
+    root = Path(REMOTE_ROOT)
+    return "SIGNAL_HOST" not in os.environ and root.is_dir() and os.access(root, os.W_OK)
+
+
 def run(command, check=True):
     try:
         return subprocess.run(command, check=check, stdout=subprocess.DEVNULL)
@@ -77,6 +83,16 @@ def run(command, check=True):
 def download(scope, destination):
     filename = FILES[scope]
     remote = f"{REMOTE_ROOT}/{filename}"
+    if local_server():
+        source = Path(remote)
+        if source.is_file():
+            shutil.copyfile(source, destination)
+        elif source.exists() or not os.access(REMOTE_ROOT, os.W_OK):
+            raise SystemExit("Could not check the server key file; nothing changed")
+        else:
+            destination.write_text("")
+        destination.chmod(0o600)
+        return
     server = host()
     check = (f"if [ -f {remote} ]; then exit 0; "
              f"elif [ -e {remote} ]; then exit 3; "
@@ -95,6 +111,15 @@ def download(scope, destination):
 def install(scope, source):
     filename = FILES[scope]
     upload = f"{REMOTE_ROOT}/.{filename}.upload"
+    if local_server():
+        try:
+            shutil.copyfile(source, upload)
+            os.chmod(upload, 0o640)
+            os.replace(upload, f"{REMOTE_ROOT}/{filename}")
+        except OSError:
+            Path(upload).unlink(missing_ok=True)
+            raise SystemExit("Local key install failed; nothing was replaced") from None
+        return
     server = host()
     run(["scp", str(source), f"{server}:{upload}"])
     run(["ssh", server, f"set -eu; chgrp trading-dev {upload}; chmod 640 {upload}; "

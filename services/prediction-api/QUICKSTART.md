@@ -1,11 +1,19 @@
 # Signal API quick start
 
-Use this guide for the JKoh draft/test API. Run commands from the `sinnfund-infra` repository root.
-The longer [operations guide](README.md) explains permissions, batch requests, export, and recovery.
+Use this guide for the JKoh draft/test API. The longer [operations guide](README.md) explains
+permissions, batch requests, export, and recovery.
 
 ## 1. Make API keys
 
-Run one command:
+If you are already logged into JKoh, run:
+
+```bash
+cd /opt/prediction-api
+python3 tools/signal_keys.py create
+```
+
+Or run it from the `sinnfund-infra` repository root on your Mac; that version connects to JKoh over
+SSH:
 
 ```bash
 python3 services/prediction-api/tools/signal_keys.py create
@@ -30,12 +38,18 @@ python3 services/prediction-api/tools/signal_keys.py list
 python3 services/prediction-api/tools/signal_keys.py revoke
 ```
 
-Creating keys requires SSH access to the API server. JKoh is the default; set `SIGNAL_HOST` to the
-approved SSH alias when operating another environment.
+The repository version requires SSH access to the API server. JKoh is the default; set
+`SIGNAL_HOST` to the approved SSH alias when operating another environment.
 
 ## 2. Save your sender key once
 
-The key owner runs:
+On JKoh, the key owner runs:
+
+```bash
+python3 tools/signal_client.py save-key
+```
+
+From the `sinnfund-infra` repository root on a Mac, use:
 
 ```bash
 python3 services/prediction-api/tools/signal_client.py save-key
@@ -44,9 +58,13 @@ python3 services/prediction-api/tools/signal_client.py save-key
 Paste the issued key at the hidden prompt. It is saved for that operating-system user with private
 permissions. `save-key` does not create or grant a key; step 1 does that.
 
-For the commands below, this shorter name is convenient:
+For the commands below, set the path that matches where you are running:
 
 ```bash
+# JKoh
+CLIENT=tools/signal_client.py
+
+# Or the sinnfund-infra repository root
 CLIENT=services/prediction-api/tools/signal_client.py
 ```
 

@@ -40,7 +40,15 @@ and `0640` with group `trading-dev` on the server.
 
 ## 2. Issue or rotate a sender key
 
-The recommended command is interactive and can create or rotate one to 100 keys at once:
+The recommended command is interactive and can create or rotate one to 100 keys at once. When
+already logged into JKoh, run it directly against the local key directory:
+
+```bash
+cd /opt/prediction-api
+python3 tools/signal_keys.py create
+```
+
+Alternatively, run the repository version from an operator Mac; it connects to JKoh over SSH:
 
 ```bash
 python3 services/prediction-api/tools/signal_keys.py create
