@@ -1,12 +1,20 @@
 # SINN Fund Infrastructure
 
-Version-controlled source, configuration templates, and operating documentation for the SINN Fund portfolio dashboards, market-data feed, prediction API, and website at `sinnfund.jkoh.dev`.
+Version-controlled source, configuration templates, and operating documentation for the SINN Fund
+portfolio dashboards, market-data feed, prediction API, and website.
+
+> **Environment status (checked 2026-11-03):** AWS is the production target, but the current EC2
+> host runs Nginx only; application ports 8001, 8002, 8003 and 8091 are not listening. The jkoh host
+> remains the active draft/test stack until the AWS services, HTTPS route and data are installed and
+> verified. Do not treat a successful EC2 Nginx response as an application cutover.
 
 The project addresses the fund's need for dependable portfolio visibility between instructor-distributed reports. It separates **read-only portfolio reporting** from research signals and any future trade-staging or execution workflow. See [Project Vision](docs/product/project-vision.md) for the motivation and planned workstreams.
 
 > **Repository scope:** This repository contains the applications listed below. The historical VaR/risk pipeline is **intentionally maintained outside this repository at present**. Its design decisions and operational history appear in `docs/`, but its application code, generated reports, and deployment units are not included here. This is a deliberate boundary, not a missing installation step.
 
-This is the **version-controlled source**, not the live application directory. Production services run under `/opt/`, the static website is served from `/var/www/sinnfund/`, and runtime state and credentials remain outside Git. Repository structure does not determine deployment paths.
+This is the **version-controlled source**, not a live application directory. Deployed services run
+under `/opt/`, the static website is served from `/var/www/sinnfund/`, and runtime state and
+credentials remain outside Git. Repository structure does not determine deployment paths.
 
 ## Architecture
 
