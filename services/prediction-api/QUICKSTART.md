@@ -3,6 +3,18 @@
 Use this guide for the JKoh draft/test API. The longer [operations guide](README.md) explains
 permissions, batch requests, export, and recovery.
 
+## 0. Get the tools on your computer
+
+Each signal sender clones the infrastructure repository once:
+
+```bash
+git clone https://github.com/SinnQuant/sinnfund-infra.git
+cd sinnfund-infra
+```
+
+The client uses only Python's standard library. A sender does not need server SSH access. An
+operator must issue the sender's key in step 1; the sender then saves it locally in step 2.
+
 ## 1. Make API keys
 
 If you are already logged into JKoh, run:
