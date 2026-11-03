@@ -157,6 +157,7 @@
     .status { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); white-space: nowrap; }
     .status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #59677b; }
     .status--available::before { background: var(--green); box-shadow: 0 0 0 3px #71d4aa12; }
+    .status--unavailable::before { background: var(--red); box-shadow: 0 0 0 3px #e57d8e12; }
     .tool h3 { margin: 24px 0 9px; font-size: 23px; font-weight: 650; letter-spacing: -.042em; }
     .tool p { max-width: 400px; margin: 0; font-size: 13px; line-height: 1.7; color: var(--muted); }
     .tool-bottom { margin-top: auto; padding-top: 29px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
@@ -238,14 +239,14 @@
 
       <div class="section-head">
         <h2>Applications</h2>
-        <span class="section-count">02 available <span aria-hidden="true">&nbsp;/&nbsp;</span> 02 in development</span>
+        <span class="section-count"><span id="available-count">Checking availability</span> <span aria-hidden="true">&nbsp;/&nbsp;</span> 02 in development</span>
       </div>
 
       <section class="tools" aria-label="Applications">
         <a class="tool" href="/close/" aria-label="Open Previous Close portfolio dashboard">
           <div class="tool-top">
             <span class="category">01 / Portfolio reporting</span>
-            <span class="status status--available">Available</span>
+            <span class="status" data-healthz="/close/healthz" aria-live="polite">Checking...</span>
           </div>
           <h3>Previous Close</h3>
           <p>End-of-day positions, account holdings, and tax lots from archived IBKR Flex reports.</p>
@@ -260,7 +261,7 @@
         <a class="tool" href="/live/" aria-label="Open Delayed Prices portfolio dashboard">
           <div class="tool-top">
             <span class="category">02 / Market data</span>
-            <span class="status status--available">Available</span>
+            <span class="status" data-healthz="/live/healthz" aria-live="polite">Checking...</span>
           </div>
           <h3>Delayed Prices</h3>
           <p>Portfolio valuations using approximately 15-minute delayed LSEG quotes, with archived Flex prices as fallback.</p>
@@ -314,6 +315,44 @@
       const status = document.getElementById('boot-status');
       const panels = [...document.querySelectorAll('.boot-desk')];
       const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      // Application status reflects each proxied service's /healthz endpoint.
+      const healthBadges = [...document.querySelectorAll('[data-healthz]')];
+      const availableCount = document.getElementById('available-count');
+
+      async function checkHealth(badge) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 4000);
+        let healthy = false;
+        try {
+          const response = await fetch(badge.dataset.healthz, {
+            method: 'GET',
+            cache: 'no-store',
+            redirect: 'error',
+            signal: controller.signal
+          });
+          // An HTML fallback page is not a valid service-health response.
+          const type = response.headers.get('content-type') || '';
+          healthy = response.ok && !type.toLowerCase().includes('text/html');
+        } catch (_) {
+          healthy = false;
+        } finally {
+          clearTimeout(timeout);
+        }
+        badge.classList.toggle('status--available', healthy);
+        badge.classList.toggle('status--unavailable', !healthy);
+        badge.textContent = healthy ? 'Available' : 'Unavailable';
+        badge.title = `${badge.dataset.healthz}: ${healthy ? 'healthy' : 'unreachable or unhealthy'}`;
+      }
+
+      async function refreshAvailability() {
+        await Promise.all(healthBadges.map(checkHealth));
+        const available = healthBadges.filter(b => b.classList.contains('status--available')).length;
+        availableCount.textContent = `${String(available).padStart(2, '0')} available`;
+      }
+
+      refreshAvailability();
+      setInterval(refreshAvailability, 30000);
+
       const bootStart = performance.now();
       const bootDuration = reducedMotion ? 130 : 4000;
       let loaded = document.readyState === 'complete';
