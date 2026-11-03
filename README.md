@@ -10,17 +10,18 @@ portfolio dashboards, market-data feed, prediction API, and website.
 
 ## Prediction signals: start here
 
-Use the [prediction API runbook](services/prediction-api/README.md) for the complete terminal-only
-workflow. It includes copy-pasteable examples and the bundled client; no UI or extra package is
-required.
+Use the [five-minute signal guide](services/prediction-api/QUICKSTART.md) for the terminal-only
+workflow. It includes copy-pasteable examples and the bundled clients; no UI or extra package is
+required. The [prediction API operations guide](services/prediction-api/README.md) has the deeper
+security and recovery details.
 
 | Task | Go here |
 |---|---|
-| Issue or rotate a person's sender key | [Issue or rotate a sender key](services/prediction-api/README.md#2-issue-or-rotate-a-sender-key) |
-| Save an already-issued key on one computer | [Automate with the bundled client](services/prediction-api/README.md#6-automate-with-the-bundled-client) |
-| Send, list, inspect, edit, or delete a signal | [Signal quick start](services/prediction-api/README.md#signal-quick-start) |
-| Send a PAPER signal | [PAPER example](services/prediction-api/README.md#paper-example) |
-| Call the API from a script or scheduled job | [Automation example](services/prediction-api/README.md#automation-example) |
+| Create one or many API keys interactively | [Make API keys](services/prediction-api/QUICKSTART.md#1-make-api-keys) |
+| Save an already-issued key on one computer | [Save your sender key](services/prediction-api/QUICKSTART.md#2-save-your-sender-key-once) |
+| Send, list, inspect, edit, or delete a signal | [Signal quick start](services/prediction-api/QUICKSTART.md#3-send-a-live-signal) |
+| Send a PAPER signal | [PAPER example](services/prediction-api/QUICKSTART.md#7-send-a-paper-signal) |
+| Call the API from a script or scheduled job | [Automation example](services/prediction-api/QUICKSTART.md#8-automate-from-a-script) |
 | List, revoke, or recover from a lost key | [Key operations](services/prediction-api/README.md#8-list-revoke-and-recover-keys) |
 
 The project addresses the fund's need for dependable portfolio visibility between instructor-distributed reports. It separates **read-only portfolio reporting** from research signals and any future trade-staging or execution workflow. See [Project Vision](docs/product/project-vision.md) for the motivation and planned workstreams.

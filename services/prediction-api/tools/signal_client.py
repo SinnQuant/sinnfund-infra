@@ -152,7 +152,7 @@ def parser():
     delete.add_argument("revision", type=positive_int, nargs="?")
     commands.add_parser("delete-only")
     commands.add_parser("save-key")
-    commands.add_parser("configure-key", help=argparse.SUPPRESS)
+    commands.add_parser("configure-key", help="legacy alias for save-key")
     return result
 
 

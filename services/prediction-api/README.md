@@ -16,6 +16,9 @@ AWS is the production target. Set `SIGNAL_HOST` to its operator-managed SSH alia
 to jkoh. Until the AWS HTTPS prefix is published, the examples below deliberately default to the
 jkoh draft/test environment.
 
+For the shortest path, use the [five-minute signal guide](QUICKSTART.md). It starts with one
+interactive key command and then shows send, list, inspect, edit, delete, PAPER, and automation.
+
 ## Signal quick start
 
 An operator first [issues a sender key](#2-issue-or-rotate-a-sender-key). The key owner saves that
@@ -61,7 +64,22 @@ and `0640` with group `trading-dev` on the server.
 
 ## 2. Issue or rotate a sender key
 
-Run these commands on the operator's Mac from the repository root. macOS already supplies
+The recommended command is interactive and can create or rotate one to 100 keys at once:
+
+```bash
+python3 services/prediction-api/tools/signal_keys.py create
+```
+
+Choose `sender`, enter how many keys, then enter each person's name. The command downloads the
+current key file, generates independent 256-bit keys, installs the complete file atomically, and
+prints the plaintext keys once. Use `list` or `revoke` for those operations:
+
+```bash
+python3 services/prediction-api/tools/signal_keys.py list
+python3 services/prediction-api/tools/signal_keys.py revoke
+```
+
+The manual commands below document the underlying recovery procedure. They require macOS's existing
 `/usr/sbin/htpasswd` and `openssl`.
 
 Only one operator may change a scope's hash file at a time. Immediately before every issue,
