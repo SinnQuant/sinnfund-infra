@@ -19,30 +19,6 @@ jkoh draft/test environment.
 For the shortest path, use the [five-minute signal guide](QUICKSTART.md). It starts with one
 interactive key command and then shows send, list, inspect, edit, delete, PAPER, and automation.
 
-## Signal quick start
-
-An operator first [issues a sender key](#2-issue-or-rotate-a-sender-key). The key owner saves that
-already-issued key once, then uses the bundled client without environment variables or revision
-lookups:
-
-```bash
-CLIENT=services/prediction-api/tools/signal_client.py
-python3 "$CLIENT" save-key
-python3 "$CLIENT" create example-1 LIVE EXAMPLE 123.45
-python3 "$CLIENT" list
-python3 "$CLIENT" get example-1
-python3 "$CLIENT" edit example-1 --price 125.00
-python3 "$CLIENT" delete example-1
-```
-
-`delete` is the API's audited removal of a pending LIVE or `no_direction` signal. It is not a
-broker-order cancellation. A PAPER signal becomes immutable when queued; cancelling a resulting
-broker order is not implemented by this client.
-
-For raw HTTP calls, batch requests, and revision handling, see
-[create, read, edit, and delete](#5-create-read-edit-and-delete-a-signal). For a reusable shell
-script, skip to the [automation example](#automation-example).
-
 ## 1. Key scopes and storage
 
 The API uses a separate random bearer key for each human identity. A caller-supplied name is never
