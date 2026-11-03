@@ -8,6 +8,21 @@ portfolio dashboards, market-data feed, prediction API, and website.
 > remains the active draft/test stack until the AWS services, HTTPS route and data are installed and
 > verified. Do not treat a successful EC2 Nginx response as an application cutover.
 
+## Prediction signals: start here
+
+Use the [prediction API runbook](services/prediction-api/README.md) for the complete terminal-only
+workflow. It includes copy-pasteable examples and the bundled client; no UI or extra package is
+required.
+
+| Task | Go here |
+|---|---|
+| Issue or rotate a person's sender key | [Issue or rotate a sender key](services/prediction-api/README.md#2-issue-or-rotate-a-sender-key) |
+| Save an already-issued key on one computer | [Automate with the bundled client](services/prediction-api/README.md#6-automate-with-the-bundled-client) |
+| Send, list, inspect, edit, or delete a signal | [Signal quick start](services/prediction-api/README.md#signal-quick-start) |
+| Send a PAPER signal | [PAPER example](services/prediction-api/README.md#paper-example) |
+| Call the API from a script or scheduled job | [Automation example](services/prediction-api/README.md#automation-example) |
+| List, revoke, or recover from a lost key | [Key operations](services/prediction-api/README.md#8-list-revoke-and-recover-keys) |
+
 The project addresses the fund's need for dependable portfolio visibility between instructor-distributed reports. It separates **read-only portfolio reporting** from research signals and any future trade-staging or execution workflow. See [Project Vision](docs/product/project-vision.md) for the motivation and planned workstreams.
 
 > **Repository scope:** This repository contains the applications listed below. The historical VaR/risk pipeline is **intentionally maintained outside this repository at present**. Its design decisions and operational history appear in `docs/`, but its application code, generated reports, and deployment units are not included here. This is a deliberate boundary, not a missing installation step.

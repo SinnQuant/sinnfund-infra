@@ -16,6 +16,30 @@ AWS is the production target. Set `SIGNAL_HOST` to its operator-managed SSH alia
 to jkoh. Until the AWS HTTPS prefix is published, the examples below deliberately default to the
 jkoh draft/test environment.
 
+## Signal quick start
+
+An operator first [issues a sender key](#2-issue-or-rotate-a-sender-key). The key owner saves that
+already-issued key once, then uses the bundled client without environment variables or revision
+lookups:
+
+```bash
+CLIENT=services/prediction-api/tools/signal_client.py
+python3 "$CLIENT" save-key
+python3 "$CLIENT" create example-1 LIVE EXAMPLE 123.45
+python3 "$CLIENT" list
+python3 "$CLIENT" get example-1
+python3 "$CLIENT" edit example-1 --price 125.00
+python3 "$CLIENT" delete example-1
+```
+
+`delete` is the API's audited removal of a pending LIVE or `no_direction` signal. It is not a
+broker-order cancellation. A PAPER signal becomes immutable when queued; cancelling a resulting
+broker order is not implemented by this client.
+
+For raw HTTP calls, batch requests, and revision handling, see
+[create, read, edit, and delete](#5-create-read-edit-and-delete-a-signal). For a reusable shell
+script, skip to the [automation example](#automation-example).
+
 ## 1. Key scopes and storage
 
 The API uses a separate random bearer key for each human identity. A caller-supplied name is never
@@ -247,6 +271,8 @@ python3 services/prediction-api/tools/signal_client.py \
 python3 services/prediction-api/tools/signal_client.py delete YOUR_SIGNAL_ID
 ```
 
+### PAPER example
+
 PAPER requires an explicit future forecast timestamp and entry limit. The API fetches a fresh
 current quote, derives LONG/SHORT from current versus target, queues one paper share, and then makes
 the signal immutable:
@@ -264,6 +290,8 @@ python3 services/prediction-api/tools/signal_client.py delete
 
 The no-ID delete stops without changing anything when zero or multiple signals are deletable.
 `delete-only` remains as a compatible alias.
+
+### Automation example
 
 For a scheduled job, run `save-key` once as the same operating-system user that will run the
 job. Then save this example outside the repository as `send_signal.sh`:
