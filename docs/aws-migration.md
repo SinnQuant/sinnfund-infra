@@ -2,7 +2,12 @@
 
 Migrating the `sinnfund.jkoh.dev` stack from the single VPS (Hetzner) to AWS, with access restricted to the Texas A&M network.
 
-**Decided strategy (see ADRs):** a like-for-like Ubuntu EC2 lift-and-shift with no application rearchitecture ([ADR-0006](decisions/0006-lift-and-shift-cloud-before-rearchitecture.md)), hosted in a **TAMU Kion-managed, university-funded AWS account** with the existing `sinnfund.jkoh.dev` address retained initially ([ADR-0023](decisions/0023-tamu-kion-governance-for-public-cloud.md), status: Proposed — approvals pending). This guide assumes that path; §4 covers the TAMU-specific network and governance details.
+**Current state (checked 2026-11-03):** the EC2 host is provisioned and Nginx listens on 80/443,
+but none of `flex-web`, `flex-web-live`, `prediction-api`, or `lseg-feed` is running and their
+loopback ports are closed. AWS is the production target, not yet a completed application cutover;
+jkoh remains drafts/tests until phases 2–3 below pass.
+
+**Decided strategy (see ADRs):** a like-for-like Ubuntu EC2 lift-and-shift with no application rearchitecture ([ADR-0006](decisions/0006-lift-and-shift-cloud-before-rearchitecture.md)), using the provisioned AWS host as the production target. Governance and data-license approvals remain tracked by [ADR-0023](decisions/0023-tamu-kion-governance-for-public-cloud.md); host provisioning alone does not prove those approvals or complete cutover.
 
 Related operational history: [INC-0003](incidents/0003-ibkr-flex-rejected-requests-and-egress-ip-dependence.md) (IBKR Flex behavior differing by outbound IP — read before cutover; see §5 Phase 3).
 

@@ -1,12 +1,36 @@
 # SINN Fund Infrastructure
 
-Version-controlled source, configuration templates, and operating documentation for the SINN Fund portfolio dashboards, market-data feed, prediction API, and website at `sinnfund.jkoh.dev`.
+Version-controlled source, configuration templates, and operating documentation for the SINN Fund
+portfolio dashboards, market-data feed, prediction API, and website.
+
+> **Environment status (checked 2026-11-03):** AWS is the production target, but the current EC2
+> host runs Nginx only; application ports 8001, 8002, 8003 and 8091 are not listening. The jkoh host
+> remains the active draft/test stack until the AWS services, HTTPS route and data are installed and
+> verified. Do not treat a successful EC2 Nginx response as an application cutover.
+
+## Prediction signals: start here
+
+Use the [five-minute signal guide](services/prediction-api/QUICKSTART.md) for the terminal-only
+workflow. It includes copy-pasteable examples and the bundled clients; no UI or extra package is
+required. The [prediction API operations guide](services/prediction-api/README.md) has the deeper
+security and recovery details.
+
+| Task | Go here |
+|---|---|
+| Create one or many API keys interactively | [Make API keys](services/prediction-api/QUICKSTART.md#1-make-api-keys) |
+| Save an already-issued key on one computer | [Save your sender key](services/prediction-api/QUICKSTART.md#2-save-your-sender-key-once) |
+| Send, list, inspect, edit, or delete a signal | [Signal quick start](services/prediction-api/QUICKSTART.md#3-send-a-live-signal) |
+| Send a PAPER signal | [PAPER example](services/prediction-api/QUICKSTART.md#7-send-a-paper-signal) |
+| Call the API from a script or scheduled job | [Automation example](services/prediction-api/QUICKSTART.md#8-automate-from-a-script) |
+| List, revoke, or recover from a lost key | [Key operations](services/prediction-api/README.md#8-list-revoke-and-recover-keys) |
 
 The project addresses the fund's need for dependable portfolio visibility between instructor-distributed reports. It separates **read-only portfolio reporting** from research signals and any future trade-staging or execution workflow. See [Project Vision](docs/product/project-vision.md) for the motivation and planned workstreams.
 
 > **Repository scope:** This repository contains the applications listed below. The historical VaR/risk pipeline is **intentionally maintained outside this repository at present**. Its design decisions and operational history appear in `docs/`, but its application code, generated reports, and deployment units are not included here. This is a deliberate boundary, not a missing installation step.
 
-This is the **version-controlled source**, not the live application directory. Production services run under `/opt/`, the static website is served from `/var/www/sinnfund/`, and runtime state and credentials remain outside Git. Repository structure does not determine deployment paths.
+This is the **version-controlled source**, not a live application directory. Deployed services run
+under `/opt/`, the static website is served from `/var/www/sinnfund/`, and runtime state and
+credentials remain outside Git. Repository structure does not determine deployment paths.
 
 ## Architecture
 
@@ -51,7 +75,7 @@ The ingestion service downloads and archives complete Flex XML reports. Both das
 | `services/flex-web/` | Read-only previous-close positions and tax-lot dashboard | `/opt/flex-web/` | `flex-web.service` | `127.0.0.1:8001` → `/close/` |
 | `services/flex-web-live/` | Read-only dashboard repriced using delayed/cached LSEG quotes | `/opt/flex-web-live/` | `flex-web-live.service` | `127.0.0.1:8002` → `/live/` |
 | `services/lseg-feed/` | LSEG session, RIC normalization, local pricing API | `/opt/lseg-feed/` | `lseg-feed.service` | `127.0.0.1:8091` (internal only) |
-| `services/prediction-api/` | Prediction and paper-signal API | `/opt/prediction-api/` | Verify installed unit name | `127.0.0.1:8003` → `/prediction/` |
+| [`services/prediction-api/`](services/prediction-api/README.md) | Prediction and paper-signal API | `/opt/prediction-api/` | `prediction-api.service` | `127.0.0.1:8003` → `/prediction/` |
 | `website/` | Static landing page | `/var/www/sinnfund/` | Served by Nginx | `/` |
 | `deploy/nginx/` | Version-controlled Nginx virtual host | `/etc/nginx/sites-available/` | `nginx.service` | HTTPS entry point and reverse proxy |
 
@@ -128,6 +152,7 @@ The `services/` paths above reflect the reorganized source layout. Deployed appl
 | [Incident reports](docs/incidents/README.md) | Failures, investigations, fixes, and follow-up actions |
 | [Engineering journal](docs/journal/README.md) | Dated development sessions and personal technical reflections |
 | [Additional notes](docs/notes.md) | Working project notes |
+| [Prediction API operations](services/prediction-api/README.md) | Issue, rotate, verify, use, and revoke signal API keys |
 
 Some ADRs and incidents discuss the risk/VaR prototype and proposed TAMU Kion/AWS hosting. Those records document the broader project history and **do not imply that the corresponding services or cloud resources are included in, or deployed from, this repository**. Trade staging through IBKR BasketTrader and researcher prediction integration are also separate workstreams; neither grants the public dashboards trading authority.
 
